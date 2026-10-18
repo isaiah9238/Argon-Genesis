@@ -1,0 +1,169 @@
+{
+  "entities": {
+    "ExperimentSnapshot": {
+      "title": "ExperimentSnapshot",
+      "description": "A saved parameter state and telemetry readout from the interactive silicon, thermodynamic, or biophysical simulation sandbox.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "The authenticated user UID who created the snapshot.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "description": "Human-readable title of the saved simulation state.",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "moduleType": {
+          "type": "string",
+          "description": "Which simulation module generated this snapshot.",
+          "enum": ["mcp_spiking", "thermodynamics", "lithography", "agi_stack"],
+          "minLength": 3,
+          "maxLength": 32
+        },
+        "summary": {
+          "type": "string",
+          "description": "Key calculated telemetry output summary.",
+          "minLength": 1,
+          "maxLength": 600
+        },
+        "parameters": {
+          "type": "object",
+          "description": "Map of simulation numeric and boolean parameters."
+        },
+        "status": {
+          "type": "string",
+          "description": "Lifecycle status of the experiment snapshot.",
+          "enum": ["active", "archived"],
+          "minLength": 6,
+          "maxLength": 16
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the snapshot was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the snapshot was last updated."
+        }
+      },
+      "required": ["ownerId", "title", "moduleType", "summary", "parameters", "status", "createdAt", "updatedAt"]
+    },
+    "ResearchNote": {
+      "title": "ResearchNote",
+      "description": "A synthesized research note or Gemini intelligence critique saved by a user.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "The authenticated user UID who owns this note.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "topic": {
+          "type": "string",
+          "description": "Historical or biophysical topic title.",
+          "minLength": 1,
+          "maxLength": 150
+        },
+        "modelUsed": {
+          "type": "string",
+          "description": "Gemini model tier used to synthesize the note.",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "content": {
+          "type": "string",
+          "description": "Markdown or plain text body of the research analysis.",
+          "minLength": 1,
+          "maxLength": 8000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the note was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the note was last updated."
+        }
+      },
+      "required": ["ownerId", "topic", "modelUsed", "content", "createdAt", "updatedAt"]
+    },
+    "ChatSession": {
+      "title": "ChatSession",
+      "description": "A saved multi-turn Gemini research conversation thread.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "The authenticated user UID who owns this chat session.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "description": "Conversation thread title.",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "persona": {
+          "type": "string",
+          "description": "Selected specialist system instruction persona.",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "model": {
+          "type": "string",
+          "description": "Active Gemini model identifier.",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "lastMessagePreview": {
+          "type": "string",
+          "description": "Preview snippet of the latest response.",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "messageCount": {
+          "type": "integer",
+          "description": "Total number of messages in the session (1 to 100)."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the session was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the session was last updated."
+        }
+      },
+      "required": ["ownerId", "title", "persona", "model", "lastMessagePreview", "messageCount", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/experiments/{experimentId}": {
+      "schema": { "$ref": "#/entities/ExperimentSnapshot" },
+      "description": "Stores user-saved simulation snapshots from the interactive sandbox."
+    },
+    "/notes/{noteId}": {
+      "schema": { "$ref": "#/entities/ResearchNote" },
+      "description": "Stores user-saved Gemini intelligence syntheses and research annotations."
+    },
+    "/sessions/{sessionId}": {
+      "schema": { "$ref": "#/entities/ChatSession" },
+      "description": "Stores metadata and summaries of multi-turn Gemini research conversations."
+    }
+  }
+}

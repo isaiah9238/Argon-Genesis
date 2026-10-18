@@ -1,0 +1,135 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pillar 1 & Phase 4.1: Global Safety Net (Default-Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Phase 3: Hardened Global Helpers
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    // Pillar 2: Validation Blueprints synchronized with firebase-blueprint.json
+    function isValidExperiment(data) {
+      return data.keys().hasAll(['ownerId', 'title', 'moduleType', 'summary', 'parameters', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'title', 'moduleType', 'summary', 'parameters', 'status', 'createdAt', 'updatedAt'])
+        && data.ownerId == request.auth.uid
+        && data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 120
+        && data.moduleType is string && data.moduleType.size() >= 3 && data.moduleType.size() <= 32
+        && (data.moduleType == 'mcp_spiking' || data.moduleType == 'thermodynamics' || data.moduleType == 'lithography' || data.moduleType == 'agi_stack')
+        && data.summary is string && data.summary.size() >= 1 && data.summary.size() <= 600
+        && data.parameters is map && data.parameters.size() <= 20
+        && data.status is string && data.status.size() >= 6 && data.status.size() <= 16
+        && (data.status == 'active' || data.status == 'archived')
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidNote(data) {
+      return data.keys().hasAll(['ownerId', 'topic', 'modelUsed', 'content', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'topic', 'modelUsed', 'content', 'createdAt', 'updatedAt'])
+        && data.ownerId == request.auth.uid
+        && data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.topic is string && data.topic.size() >= 1 && data.topic.size() <= 150
+        && data.modelUsed is string && data.modelUsed.size() >= 1 && data.modelUsed.size() <= 64
+        && data.content is string && data.content.size() >= 1 && data.content.size() <= 8000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidSession(data) {
+      return data.keys().hasAll(['ownerId', 'title', 'persona', 'model', 'lastMessagePreview', 'messageCount', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'title', 'persona', 'model', 'lastMessagePreview', 'messageCount', 'createdAt', 'updatedAt'])
+        && data.ownerId == request.auth.uid
+        && data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 120
+        && data.persona is string && data.persona.size() >= 1 && data.persona.size() <= 64
+        && data.model is string && data.model.size() >= 1 && data.model.size() <= 64
+        && data.lastMessagePreview is string && data.lastMessagePreview.size() >= 1 && data.lastMessagePreview.size() <= 500
+        && data.messageCount is int && data.messageCount >= 1 && data.messageCount <= 100
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // Collection 1: /experiments/{experimentId}
+    match /experiments/{experimentId} {
+      allow get: if isSignedIn() && isValidId(experimentId) && existing().ownerId == request.auth.uid;
+      allow list: if isSignedIn() && existing().ownerId == request.auth.uid;
+      allow create: if isSignedIn()
+        && isValidId(experimentId)
+        && isValidExperiment(incoming())
+        && incoming().status == 'active'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isSignedIn()
+        && isValidId(experimentId)
+        && isValidExperiment(incoming())
+        && existing().ownerId == request.auth.uid
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && existing().status != 'archived'
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'summary', 'parameters', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+        );
+      allow delete: if isSignedIn() && isValidId(experimentId) && existing().ownerId == request.auth.uid;
+    }
+
+    // Collection 2: /notes/{noteId}
+    match /notes/{noteId} {
+      allow get: if isSignedIn() && isValidId(noteId) && existing().ownerId == request.auth.uid;
+      allow list: if isSignedIn() && existing().ownerId == request.auth.uid;
+      allow create: if isSignedIn()
+        && isValidId(noteId)
+        && isValidNote(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isSignedIn()
+        && isValidId(noteId)
+        && isValidNote(incoming())
+        && existing().ownerId == request.auth.uid
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['topic', 'content', 'updatedAt']);
+      allow delete: if isSignedIn() && isValidId(noteId) && existing().ownerId == request.auth.uid;
+    }
+
+    // Collection 3: /sessions/{sessionId}
+    match /sessions/{sessionId} {
+      allow get: if isSignedIn() && isValidId(sessionId) && existing().ownerId == request.auth.uid;
+      allow list: if isSignedIn() && existing().ownerId == request.auth.uid;
+      allow create: if isSignedIn()
+        && isValidId(sessionId)
+        && isValidSession(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isSignedIn()
+        && isValidId(sessionId)
+        && isValidSession(incoming())
+        && existing().ownerId == request.auth.uid
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'model', 'lastMessagePreview', 'messageCount', 'updatedAt']);
+      allow delete: if isSignedIn() && isValidId(sessionId) && existing().ownerId == request.auth.uid;
+    }
+  }
+}

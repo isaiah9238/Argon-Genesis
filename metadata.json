@@ -1,0 +1,6 @@
+{
+  "name": "Genesis of Machine Cognition",
+  "description": "Interactive biophysical, thermodynamic, and historical simulation platform exploring silicon photolithography, McCulloch-Pitts neural calculus, Landauer's limit, neuromorphic computing, and Gemini cognitive synthesis.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
